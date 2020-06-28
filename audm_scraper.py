@@ -5,7 +5,8 @@ import shutil
 import configparser
 
 config = configparser.RawConfigParser()
-config.read('config.cfg')
+with open("config.cfg", "r") as cfg:
+    config.read_file(cfg)
 username = config.get("logins", "username")
 password = config.get("logins", "password")
 
@@ -91,7 +92,8 @@ def main():
     for eachpublication in filters["publications"]:
 
         # I've found it way easier to sort by publication first
-        os.makedirs(eachpublication["name_full"], exist_ok=True)
+        publications_dir = os.path.abspath("output/" + eachpublication["name_full"])
+        os.makedirs(publications_dir, exist_ok=True)
 
         articles = audm.articles(publication_ids=[eachpublication["object_id"]])
         article_ids = []
@@ -106,24 +108,24 @@ def main():
 
             print(article)
 
-            os.makedirs(article["publication_name"] + "/" + article["short_name"], exist_ok=True)
+            os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
             p = audm.paragraphs([article["object_id"]])
             # Articles are split up by paragraph and there can be quite a few. Although they are numbered and timestamped, makes more sense to join them
             for f in p:
                 file = audm.get_file(f["audio_filename"])
-                filename = article["publication_name"] + "/" + article["short_name"] + "/" + f["audio_filename"]
+                filename = publications_dir + "/" + article["short_name"] + "/" + f["audio_filename"]
                 with open(filename, "wb") as fz:
                     fz.write(file.content)
                     files.append({"filename": filename, "index": f["index"]})
             fo = sorted(files, key = lambda i: i['index'])
             # Temporary file to enable ffmpeg to demux and concat the m4a files
-            tempfile = os.path.abspath(article["publication_name"] + "/" + article["short_name"] + "/templist.txt").replace("'", "'\\''")
+            tempfile = os.path.join(publications_dir + "/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
-            eventual_outfile = os.path.abspath(article["publication_name"] + "/" + article["short_name"] + "-" + article["author_name"] + "-" + article["pub_date"] + ".m4a").replace("'", "'\\''")
+            eventual_outfile = os.path.join(publications_dir, article["short_name"] + "-" + article["author_name"] + "-" + article["pub_date"] + ".m4a").replace("'", "'\\''")
 
             with open(tempfile, "a") as listf:
                 for fn in fo:
-                    sanitized_file = os.path.abspath(fn["filename"]).replace("'", "'\\''")
+                    sanitized_file = fn["filename"].replace("'", "'\\''")
                     print(sanitized_file)
                     listf.write("file '" + sanitized_file + "'\n")
 
@@ -140,7 +142,7 @@ def main():
             print(audio.tags)
             audio.save()
             # Cleanup
-            shutil.rmtree(os.path.abspath(eachpublication["name_full"] + "/" + article["short_name"]))
+            shutil.rmtree(publications_dir + "/" + article["short_name"])
 
 if __name__ == '__main__':
     main()

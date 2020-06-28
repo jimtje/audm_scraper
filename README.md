@@ -30,7 +30,7 @@ And that's it, off you go.
 ```
 python audm_scraper.py
 ```
-Audio files are saved to output/[:publication name]/ by default.
+Audio files are saved to output/{publication name}/ by default.
 
 ### Licensing
 This project is licensed under Unlicense license. This license does not require you to take the license with you to your project.
