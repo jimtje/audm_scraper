@@ -108,15 +108,18 @@ def main():
             article_ids.append(i["object_id"])
 
         t = audm.articlepreviews(article_ids)
+        num_articles = len(t["article_versions"])
+        counter = 1
         for article in t["article_versions"]:
             files = []
             article["publication_name"] = eachpublication["name_full"]
+
 
             eventual_outfile = os.path.join(publications_dir,
                                             article["short_name"] + "-" + article["author_name"] + "-" + article[
                                                 "pub_date"] + ".m4a").replace("'", "'\\''")
             if not os.path.exists(eventual_outfile):
-                print("Article: " + article["title"] + " by " + article["author_name"])
+                print("Article: " + article["title"] + " by " + article["author_name"] + " " + str(counter) + "/" + str(num_articles))
                 p = audm.paragraphs([article["object_id"]])
                 os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
 
@@ -155,8 +158,10 @@ def main():
                 audio.save()
                 # Cleanup
                 shutil.rmtree(publications_dir + "/" + article["short_name"])
+                counter += 1
             else:
-                print(article["title"] + " by " + article["author_name"] + " already downloaded, skipping article")
+                print(article["title"] + " by " + article["author_name"] + " already downloaded, skipping article." + " " + str(counter) + "/" + str(num_articles))
+                counter += 1
 
 
 if __name__ == '__main__':
