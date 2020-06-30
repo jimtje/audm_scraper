@@ -90,67 +90,65 @@ def main():
     # This grabs the filtering options available. Filtering is first done by narrator, publication, or author.
     filters = audm.filters()
 
-    with alive_bar(len(filters["publications"]), force_tty=True) as publication_bar:
 
-        for eachpublication in filters["publications"]:
-            print("Publication: " + eachpublication["name_full"])
 
-            # I've found it way easier to sort by publication first
-            publications_dir = os.path.abspath("output/" + eachpublication["name_full"])
-            os.makedirs(publications_dir, exist_ok=True)
+    for eachpublication in filters["publications"]:
+        print("Publication: " + eachpublication["name_full"])
 
-            articles = audm.articles(publication_ids=[eachpublication["object_id"]])
-            article_ids = []
-            # With the article_ids, it's then possible to get the full metadata on each article.
-            for i in articles["article_versions"]:
-                article_ids.append(i["object_id"])
+        # I've found it way easier to sort by publication first
+        publications_dir = os.path.abspath("output/" + eachpublication["name_full"])
+        os.makedirs(publications_dir, exist_ok=True)
 
-            t = audm.articlepreviews(article_ids)
-            with alive_bar(len(t["article_versions"]), force_tty=True) as article_bar:
-                for article in t["article_versions"]:
-                    files = []
-                    article["publication_name"] = eachpublication["name_full"]
+        articles = audm.articles(publication_ids=[eachpublication["object_id"]])
+        article_ids = []
+        # With the article_ids, it's then possible to get the full metadata on each article.
+        for i in articles["article_versions"]:
+            article_ids.append(i["object_id"])
 
-                    print("Article: " + article["title"] + " by " + article["author_name"])
+        t = audm.articlepreviews(article_ids)
+        for article in t["article_versions"]:
+            files = []
+            article["publication_name"] = eachpublication["name_full"]
 
-                    os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
-                    p = audm.paragraphs([article["object_id"]])
-                    # Articles are split up by paragraph and there can be quite a few. Although they are numbered and timestamped, makes more sense to join them
-                    with alive_bar(len(p), force_tty=True) as filebar:
-                        for f in p:
-                            file = audm.get_file(f["audio_filename"])
-                            filename = publications_dir + "/" + article["short_name"] + "/" + f["audio_filename"]
-                            with open(filename, "wb") as fz:
-                                fz.write(file.content)
-                                files.append({"filename": filename, "index": f["index"]})
-                            filebar()
-                    fo = sorted(files, key = lambda i: i['index'])
-                    # Temporary file to enable ffmpeg to demux and concat the m4a files
-                    tempfile = os.path.join(publications_dir + "/" + article["short_name"], "templist.txt").replace("'", "'\\''")
+            print("Article: " + article["title"] + " by " + article["author_name"])
 
-                    eventual_outfile = os.path.join(publications_dir, article["short_name"] + "-" + article["author_name"] + "-" + article["pub_date"] + ".m4a").replace("'", "'\\''")
+            os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
+            p = audm.paragraphs([article["object_id"]])
+            # Articles are split up by paragraph and there can be quite a few. Although they are numbered and timestamped, makes more sense to join them
+            with alive_bar(len(p), force_tty=True) as filebar:
+                for f in p:
+                    file = audm.get_file(f["audio_filename"])
+                    filename = publications_dir + "/" + article["short_name"] + "/" + f["audio_filename"]
+                    with open(filename, "wb") as fz:
+                        fz.write(file.content)
+                        files.append({"filename": filename, "index": f["index"]})
+                    filebar()
+            fo = sorted(files, key = lambda i: i['index'])
+            # Temporary file to enable ffmpeg to demux and concat the m4a files
+            tempfile = os.path.join(publications_dir + "/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
-                    with open(tempfile, "a") as listf:
+            eventual_outfile = os.path.join(publications_dir, article["short_name"] + "-" + article["author_name"] + "-" + article["pub_date"] + ".m4a").replace("'", "'\\''")
 
-                        for fn in fo:
-                            sanitized_file = fn["filename"].replace("'", "'\\''")
-                            listf.write("file '" + sanitized_file + "'\n")
+            with open(tempfile, "a") as listf:
 
-                    concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"{eventual_outfile}\""
-                    os.system(concat_command)
-                    # Tagging
-                    audio = taglib.File(eventual_outfile)
-                    audio.tags["PERFORMER"] = article["narrator_name"]
-                    audio.tags["ARTIST"] = article["author_name"]
-                    audio.tags["TITLE"] = article["title"]
-                    audio.tags["ALBUM"] = article["publication_name"]
-                    audio.tags["DATE"] = article["pub_date"]
-                    audio.tags["DESCRIPTION"] = article["desc"]
-                    audio.save()
-                    # Cleanup
-                    shutil.rmtree(publications_dir + "/" + article["short_name"])
-                    article_bar(text="articles")
-            publication_bar(text="publications")
+                for fn in fo:
+                    sanitized_file = fn["filename"].replace("'", "'\\''")
+                    listf.write("file '" + sanitized_file + "'\n")
+
+            concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"{eventual_outfile}\""
+            os.system(concat_command)
+            # Tagging
+            audio = taglib.File(eventual_outfile)
+            audio.tags["PERFORMER"] = article["narrator_name"]
+            audio.tags["ARTIST"] = article["author_name"]
+            audio.tags["TITLE"] = article["title"]
+            audio.tags["ALBUM"] = article["publication_name"]
+            audio.tags["DATE"] = article["pub_date"]
+            audio.tags["DESCRIPTION"] = article["desc"]
+            audio.save()
+            # Cleanup
+            shutil.rmtree(publications_dir + "/" + article["short_name"])
+
 
 if __name__ == '__main__':
     main()
