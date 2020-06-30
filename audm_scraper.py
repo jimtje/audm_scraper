@@ -110,14 +110,11 @@ def main():
             files = []
             article["publication_name"] = eachpublication["name_full"]
 
-            print("Article: " + article["title"] + " by " + article["author_name"])
-
-
-
             eventual_outfile = os.path.join(publications_dir,
                                             article["short_name"] + "-" + article["author_name"] + "-" + article[
                                                 "pub_date"] + ".m4a").replace("'", "'\\''")
             if not os.path.exists(eventual_outfile):
+                print("Article: " + article["title"] + " by " + article["author_name"])
                 p = audm.paragraphs([article["object_id"]])
                 os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
 
@@ -156,7 +153,7 @@ def main():
                 # Cleanup
                 shutil.rmtree(publications_dir + "/" + article["short_name"])
             else:
-                print(article["title"] + " already downloaded, skipping article")
+                print(article["title"] + " by " + article["author_name"] + " already downloaded, skipping article")
 
 
 if __name__ == '__main__':
