@@ -4,3 +4,4 @@ idna==2.10
 pytaglib==1.4.6
 requests==2.24.0
 urllib3==1.25.9
+alive_progress
