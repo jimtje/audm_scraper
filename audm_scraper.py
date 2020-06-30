@@ -154,6 +154,8 @@ def main():
                 audio.save()
                 # Cleanup
                 shutil.rmtree(publications_dir + "/" + article["short_name"])
+            else:
+                print(eventual_outfile + " already exists, skipping article")
 
 
 if __name__ == '__main__':
