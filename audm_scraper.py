@@ -112,13 +112,14 @@ def main():
 
             print("Article: " + article["title"] + " by " + article["author_name"])
 
-            os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
-            p = audm.paragraphs([article["object_id"]])
+
 
             eventual_outfile = os.path.join(publications_dir,
                                             article["short_name"] + "-" + article["author_name"] + "-" + article[
                                                 "pub_date"] + ".m4a").replace("'", "'\\''")
             if not os.path.exists(eventual_outfile):
+                p = audm.paragraphs([article["object_id"]])
+                os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
 
                 # Articles are split up by paragraph and there can be quite a few. Although they are numbered and timestamped, makes more sense to join them
                 with alive_bar(len(p), force_tty=True) as filebar:
@@ -155,7 +156,7 @@ def main():
                 # Cleanup
                 shutil.rmtree(publications_dir + "/" + article["short_name"])
             else:
-                print(eventual_outfile + " already exists, skipping article")
+                print(article["title"] + " already downloaded, skipping article")
 
 
 if __name__ == '__main__':
