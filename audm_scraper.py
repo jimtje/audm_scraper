@@ -113,13 +113,16 @@ def main():
         for article in t["article_versions"]:
             files = []
             article["publication_name"] = eachpublication["name_full"]
+            article_title = article["title"]
+            author = article["author_name"].replace('"', '')
 
 
             eventual_outfile = os.path.join(publications_dir,
-                                            article["short_name"] + "-" + article["author_name"] + "-" + article[
+                                            article["short_name"] + "-" + author + "-" + article[
                                                 "pub_date"] + ".m4a").replace("'", "'\\''")
             if not os.path.exists(eventual_outfile):
-                print("Article: " + article["title"] + " by " + article["author_name"] + " " + str(counter) + "/" + str(num_articles))
+
+                print("Article: " + article_title + " by " + author + " " + str(counter) + "/" + str(num_articles))
                 p = audm.paragraphs([article["object_id"]])
                 os.makedirs(publications_dir + "/" + article["short_name"], exist_ok=True)
 
@@ -150,8 +153,8 @@ def main():
                 # Tagging
                 audio = taglib.File(eventual_outfile)
                 audio.tags["PERFORMER"] = article["narrator_name"]
-                audio.tags["ARTIST"] = article["author_name"]
-                audio.tags["TITLE"] = article["title"]
+                audio.tags["ARTIST"] = author
+                audio.tags["TITLE"] = article_title
                 audio.tags["ALBUM"] = article["publication_name"]
                 audio.tags["DATE"] = article["pub_date"]
                 audio.tags["DESCRIPTION"] = article["desc"]
@@ -160,7 +163,7 @@ def main():
                 shutil.rmtree(publications_dir + "/" + article["short_name"])
                 counter += 1
             else:
-                print(article["title"] + " by " + article["author_name"] + " already downloaded, skipping article." + " " + str(counter) + "/" + str(num_articles))
+                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(counter) + "/" + str(num_articles))
                 counter += 1
 
 
