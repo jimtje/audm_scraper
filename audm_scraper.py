@@ -103,7 +103,6 @@ def main():
     for eachpublication in filters["publications"]:
         publication_name = eachpublication["name_full"].replace("/", "-")
 
-
         print("Publication: " + publication_name + " " + str(publication_counter) + "/" + str(totalpublications))
         publication_counter += 1
 
@@ -135,9 +134,6 @@ def main():
             for char in illegal_char:
                 eventual_outfile = eventual_outfile.replace(char, "")
 
-
-
-
             if db["articles"].find_one(object_id=article["object_id"]) == None:
 
                 if not os.path.exists(eventual_outfile):
@@ -145,7 +141,6 @@ def main():
                     print("Article: " + article_title + " by " + author + " " + str(counter) + "/" + str(num_articles))
                     p = audm.paragraphs([article["object_id"]])
                     os.makedirs("output/" + article["short_name"], exist_ok=True)
-
 
                     # Articles are split up by paragraph and there can be quite a few. Although they are numbered and
                     # timestamped, makes more sense to join them
@@ -163,16 +158,17 @@ def main():
 
                     for part in textfo:
                         article_text_string += part["text"] + "\n"
-                    db["article_text"].insert_ignore(
-                            {"publication": article["publication_name"], "title": article_title, "author": author, "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string}, ["object_id"])
+                    db["article_text"].insert_ignore({
+                            "publication": article["publication_name"], "title": article_title, "author": author,
+                            "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
+                    }, ["object_id"])
                     # Temporary file to enable ffmpeg to demux and concat the m4a files
-                    tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'","'\\''")
+                    tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
                     with open(tempfile, "a") as listf:
 
                         for fn in fo:
-                            listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")
-                            # -nostats -loglevel 0
+                            listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
 
                     concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
                                      f"{eventual_outfile}\""
@@ -180,7 +176,12 @@ def main():
                     # Tagging
                     shutil.rmtree("output/" + article["short_name"])
                     counter += 1
-                    db["articles"].upsert({"publication": article["publication_name"], "title": article_title, "author": author, "pubdate": pubdate.timestamp, "narrator": article["narrator_name"], "description": article["desc"], "object_id": article["object_id"], "file_path": eventual_outfile}, ["object_id"])
+                    db["articles"].upsert({
+                                                  "publication": article["publication_name"], "title": article_title,
+                                                  "author": author, "pubdate": pubdate.timestamp,
+                                                  "narrator": article["narrator_name"], "description": article["desc"],
+                                                  "object_id": article["object_id"], "file_path": eventual_outfile
+                                          }, ["object_id"])
                     audio = MP4(eventual_outfile)
                     audio.delete()
                     try:
@@ -197,15 +198,15 @@ def main():
                     audio['\xa9day'] = pubdate.format('YYYY-MM-DD')
                     audio['desc'] = article["desc"]
 
-                    audio.save()
-                    # Cleanup
+                    audio.save()  # Cleanup
 
                 else:
                     print(article_title + " by " + author + " file exists, skipping article." + " " + str(
-                        counter) + "/" + str(num_articles))
+                            counter) + "/" + str(num_articles))
                     counter += 1
             else:
-                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(counter) + "/" + str(num_articles))
+                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(
+                    counter) + "/" + str(num_articles))
                 counter += 1
 
 
