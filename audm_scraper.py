@@ -101,7 +101,7 @@ def main():
     publication_counter = 1
     totalpublications = len(filters["publications"])
     for eachpublication in filters["publications"]:
-        publication_name = eachpublication["name_full"]
+        publication_name = eachpublication["name_full"].replace("/", "-")
 
 
         print("Publication: " + publication_name + " " + str(publication_counter) + "/" + str(totalpublications))
