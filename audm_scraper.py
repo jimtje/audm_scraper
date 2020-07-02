@@ -105,6 +105,7 @@ def main():
 
 
         print("Publication: " + publication_name + " " + str(publication_counter) + "/" + str(totalpublications))
+        publication_counter += 1
 
         # I've found it way easier to sort by publication first
         # publications_dir = os.path.abspath("output/" + eachpublication["name_full"])
