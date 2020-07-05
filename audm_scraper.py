@@ -66,7 +66,7 @@ class Audm(object):
         r = self.session.post(url)
         return r.json()["result"]
 
-    def articles(self, publication_ids: List[str] = [], narrator_names: List = [str], author_names: List = [str]) -> Dict[str, List]:
+    def articles(self, publication_ids: List[str] = [], narrator_names: List[str] = [], author_names: List[str] = []) -> Dict[str, List]:
         payload = {
                 "publication_ids": publication_ids, "ordering": "byAudmDateDesc", "narrator_names": narrator_names,
                 "author_names": author_names
