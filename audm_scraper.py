@@ -1,6 +1,7 @@
 import configparser
 import os
 import shutil
+from typing import List, Dict, Tuple
 
 import requests
 from mutagen.mp4 import MP4, MP4Cover, MP4Tags
@@ -37,7 +38,7 @@ class Audm(object):
         self.user_id = None
         self._login()
 
-    def _login(self):
+    def _login(self) -> None:
         url = "https://api.audm.com/v5/auth/login"
         payload = {"email": self.username, "password": self.password}
         r = self.session.post(url, json=payload)
@@ -48,7 +49,7 @@ class Audm(object):
         elif r.status_code == 401:
             raise InvalidLogin
 
-    def _get_signed_cookies(self):
+    def _get_signed_cookies(self) -> Dict[str, str]:
         url = "https://api.audm.com/v5/auth/get-cloudfront-signed-cookies"
         r = self.session.get(url)
         cookies = r.json()["result"]["cookies-text"]
@@ -65,7 +66,7 @@ class Audm(object):
         r = self.session.post(url)
         return r.json()["result"]
 
-    def articles(self, publication_ids=[], narrator_names=[], author_names=[]):
+    def articles(self, publication_ids: List[str] = [], narrator_names: List = [str], author_names: List = [str]) -> Dict[str, List]:
         payload = {
                 "publication_ids": publication_ids, "ordering": "byAudmDateDesc", "narrator_names": narrator_names,
                 "author_names": author_names
@@ -94,7 +95,7 @@ class Audm(object):
         return r
 
 
-def main():
+def main() -> None:
     audm = Audm(username, password)
     # This grabs the filtering options available. Filtering is first done by narrator, publication, or author.
     filters = audm.filters()
@@ -130,84 +131,87 @@ def main():
             eventual_outfile = os.path.join("output",
                                             pubdate.format('YYYY-MM-DD') + "-" + publication_name + "-" + article[
                                                 "short_name"] + ".m4a")
+            cover_image = os.path.join("output", pubdate.format('YYYY-MM-DD') + "-" + publication_name + "-" + article[
+                "short_name"] + ".png")
             illegal_char = ("?", "'", '"', "*", "^", "%", "$", "#", "~", "<", ">", ",", ";", ":", "|",)
             for char in illegal_char:
                 eventual_outfile = eventual_outfile.replace(char, "")
+                cover_image = cover_image.replace(char, "")
 
-            if db["articles"].find_one(object_id=article["object_id"]) == None:
+            if not os.path.exists(eventual_outfile):
 
-                if not os.path.exists(eventual_outfile):
+                print("Article: " + article_title + " by " + author + " " + str(counter) + "/" + str(num_articles))
+                p = audm.paragraphs([article["object_id"]])
+                os.makedirs("output/" + article["short_name"], exist_ok=True)
 
-                    print("Article: " + article_title + " by " + author + " " + str(counter) + "/" + str(num_articles))
-                    p = audm.paragraphs([article["object_id"]])
-                    os.makedirs("output/" + article["short_name"], exist_ok=True)
+                # Articles are split up by paragraph and there can be quite a few. Although they are numbered and
+                # timestamped, makes more sense to join them
+                with alive_bar(len(p), force_tty=True) as filebar:
+                    for f in p:
+                        file = audm.get_file(f["audio_filename"])
+                        filename = os.path.join("output", article["short_name"] + "/" + f["audio_filename"])
+                        with open(filename, "wb") as fz:
+                            fz.write(file.content)
+                            files.append({"filename": filename, "index": f["index"]})
+                            article_text.append({"index": f["index"], "text": f["text"]})
+                        filebar()
+                fo = sorted(files, key=lambda i: i['index'])
+                textfo = sorted(article_text, key=lambda i: i['index'])
 
-                    # Articles are split up by paragraph and there can be quite a few. Although they are numbered and
-                    # timestamped, makes more sense to join them
-                    with alive_bar(len(p), force_tty=True) as filebar:
-                        for f in p:
-                            file = audm.get_file(f["audio_filename"])
-                            filename = os.path.join("output", article["short_name"] + "/" + f["audio_filename"])
-                            with open(filename, "wb") as fz:
-                                fz.write(file.content)
-                                files.append({"filename": filename, "index": f["index"]})
-                                article_text.append({"index": f["index"], "text": f["text"]})
-                            filebar()
-                    fo = sorted(files, key=lambda i: i['index'])
-                    textfo = sorted(article_text, key=lambda i: i['index'])
+                for part in textfo:
+                    article_text_string += part["text"] + "\n"
+                db["article_text"].insert_ignore({
+                        "publication": article["publication_name"], "title": article_title, "author": author,
+                        "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
+                }, ["object_id"])
+                # Temporary file to enable ffmpeg to demux and concat the m4a files
+                tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
-                    for part in textfo:
-                        article_text_string += part["text"] + "\n"
-                    db["article_text"].insert_ignore({
-                            "publication": article["publication_name"], "title": article_title, "author": author,
-                            "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
-                    }, ["object_id"])
-                    # Temporary file to enable ffmpeg to demux and concat the m4a files
-                    tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
+                with open(tempfile, "a") as listf:
 
-                    with open(tempfile, "a") as listf:
+                    for fn in fo:
+                        listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
 
-                        for fn in fo:
-                            listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
-
-                    concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
-                                     f"{eventual_outfile}\""
-                    os.system(concat_command)
-                    # Tagging
-                    shutil.rmtree("output/" + article["short_name"])
-                    counter += 1
-                    db["articles"].upsert({
-                                                  "publication": article["publication_name"], "title": article_title,
-                                                  "author": author, "pubdate": pubdate.timestamp,
-                                                  "narrator": article["narrator_name"], "description": article["desc"],
-                                                  "object_id": article["object_id"], "file_path": eventual_outfile
-                                          }, ["object_id"])
-                    audio = MP4(eventual_outfile)
-                    audio.delete()
-                    try:
-                        audio.add_tags()
-                    except:
-                        pass
-                    image = audm.get_file(article["img_lock_2x"])
-                    audio["covr"] = [MP4Cover(data=image.content, imageformat=MP4Cover.FORMAT_PNG)]
-
-                    audio['\xa9nam'] = article_title
-                    audio['\xa9alb'] = publication_name
-                    audio['\xa9ART'] = author
-                    audio['\xa9wrt'] = article["narrator_name"]
-                    audio['\xa9day'] = pubdate.format('YYYY-MM-DD')
-                    audio['desc'] = article["desc"]
-
-                    audio.save()  # Cleanup
-
-                else:
-                    print(article_title + " by " + author + " file exists, skipping article." + " " + str(
-                            counter) + "/" + str(num_articles))
-                    counter += 1
-            else:
-                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(
-                    counter) + "/" + str(num_articles))
+                concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
+                                 f"{eventual_outfile}\""
+                os.system(concat_command)
+                # Tagging
+                shutil.rmtree("output/" + article["short_name"])
                 counter += 1
+                db["articles"].upsert({
+                                              "publication": article["publication_name"], "title": article_title,
+                                              "author": author, "pubdate": pubdate.timestamp,
+                                              "narrator": article["narrator_name"], "description": article["desc"],
+                                              "object_id": article["object_id"], "file_path": eventual_outfile
+                                      }, ["object_id"])
+                audio = MP4(eventual_outfile)
+                audio.delete()
+                try:
+                    audio.add_tags()
+                except:
+                    pass
+                image = audm.get_file(article["img_lock_2x"])
+
+                audio["covr"] = [MP4Cover(data=image.content, imageformat=MP4Cover.FORMAT_PNG)]
+
+                audio['\xa9nam'] = article_title
+                audio['\xa9alb'] = publication_name
+                audio['\xa9ART'] = author
+                audio['\xa9wrt'] = article["narrator_name"]
+                audio['\xa9day'] = pubdate.format('YYYY-MM-DD')
+                audio['desc'] = article["desc"]
+
+                audio.save()  # Cleanup
+
+            else:
+                print(article_title + " by " + author + " file exists, skipping article." + " " + str(
+                        counter) + "/" + str(num_articles))
+                counter += 1
+            if not os.path.exists(cover_image):
+                image = audm.get_file(article["img_lock_2x"])
+
+                with open(cover_image, "wb") as cv:
+                    cv.write(image.content)
 
 
 if __name__ == '__main__':
