@@ -55,7 +55,7 @@ for i in bk.ls(recursive=True):
         fe.title(article.title)
         fe.podcast.itunes_author(article.author)
         fe.podcast.itunes_subtitle(article.publication + ": " + article.title)
-        fe.pubdate(arrow.get(article.pubdate).format('YYYY-MM-DD'))
+        fe.pubDate(arrow.arrow.Arrow.fromtimestamp(article.pubdate).format('YYYY-MM-DD'))
         fe.description(article.album + "\nnarrated by: " + article.narrator + "\n" + article.description)
         fe.author(article.author)
         fe.enclosure(downloadurl, 0, 'audio/x-m4a')
