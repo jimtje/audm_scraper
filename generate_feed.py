@@ -1,5 +1,5 @@
 from b2sdk.v1 import B2Api, InMemoryAccountInfo, ScanPoliciesManager, parse_sync_folder, Synchronizer, NewerFileSyncMode, SyncReport, CompareVersionMode, KeepOrDeleteMode
-from feedgen.feed import FeedGenerator
+from podgen import Podcast, Category, Episode, Media, Person
 import time
 import sys
 from backports.zoneinfo import ZoneInfo
@@ -38,35 +38,33 @@ with SyncReport(sys.stdout, no_progress) as reporter:
     synchronizer.sync_folders(source_folder=source, dest_folder=destination, now_millis=int(round(time.time() * 1000)),
             reporter=reporter)
 
-fg = FeedGenerator()
-fg.load_extension('podcast', atom=True, rss=True)
-fg.title('Audm Feed')
-fg.language('en')
-fg.podcast.itunes_category('News')
-fg.link({'href':'http://audm.com', 'rel':'self'})
-fg.description("Audm")
+p = Podcast()
+
+p.name = 'Audm Feed'
+p.explicit = False
+p.language = "en-US"
+p.website = "https://www.audm.com"
+p.description = "Audm"
+p.category = Category("News")
 bk = b2.get_bucket_by_name(bucketname)
 for i in bk.ls(recursive=True):
     if i[0].as_dict()["fileName"].endswith(".m4a"):
-        print(i[0].as_dict())
         fn = i[0].as_dict()["fileName"]
         print(fn)
         try:
             article = db["articles"].find_one(file_path="output/" + fn)
-            fe = fg.add_entry()
+            fe = p.add_episode()
             downloadurl = bk.get_download_url(i[0].as_dict()['fileName'])
             imageurl = bk.get_download_url(i[0].as_dict()['fileName'].rsplit('.', 1)[0] + '.png')
-            fe.id(downloadurl)
-            fe.title(article.title)
-            fe.podcast.itunes_author(article.author)
-            fe.podcast.itunes_subtitle(article.publication + ": " + article.title)
+            size = i[0].as_dict()["size"]
+            fe.media = Media(downloadurl, size=size)
+            fe.title = article.title
+            fe.subtitle = article.publication + ": " + article.title
             pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
-            fe.published(pubdate)
-            fe.description(article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description)
-            fe.author({"name":article.author, "email": "user@example.com"})
-            fe.enclosure(downloadurl, 0, 'audio/x-m4a')
-            fe.podcast.itunes_image(imageurl)
+            fe.publication_date = pubdate
+            fe.summary = article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description
+            fe.authors = [Person(article.author), Person(article.publication)]
+            fe.image = imageurl
         except:
             pass
-fg.rss_str(pretty=True)
-fg.rss_file('podcast.xml')
+p.rss_file('podcast.xml')
