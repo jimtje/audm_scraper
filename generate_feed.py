@@ -59,7 +59,7 @@ for i in bk.ls(recursive=True):
         pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
         fe.published(pubdate)
         fe.description(article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description)
-        fe.author(article.author)
+        fe.author({"name":article.author, "email": "user@example.com"})
         fe.enclosure(downloadurl, 0, 'audio/x-m4a')
         fe.podcast.itunes_image(imageurl)
 fg.rss_str(pretty=True)
