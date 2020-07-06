@@ -43,7 +43,8 @@ fg.load_extension('podcast', atom=True, rss=True)
 fg.title('Audm Feed')
 fg.language('en')
 fg.podcast.itunes_category('News')
-
+fg.link({'href':'http://audm.com', 'rel':'self'})
+fg.description("Audm")
 bk = b2.get_bucket_by_name(bucketname)
 for i in bk.ls(recursive=True):
     if i[0].as_dict()["fileName"].endswith(".m4a"):
