@@ -51,20 +51,18 @@ for i in bk.ls(recursive=True):
     if i[0].as_dict()["fileName"].endswith(".m4a"):
         fn = i[0].as_dict()["fileName"]
         print(fn)
-        try:
-            article = db["articles"].find_one(file_path="output/" + fn)
-            fe = p.add_episode()
-            downloadurl = bk.get_download_url(i[0].as_dict()['fileName'])
-            imageurl = bk.get_download_url(i[0].as_dict()['fileName'].rsplit('.', 1)[0] + '.png')
-            size = i[0].as_dict()["size"]
-            fe.media = Media(downloadurl, size=size)
-            fe.title = article.title
-            fe.subtitle = article.publication + ": " + article.title
-            pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
-            fe.publication_date = pubdate
-            fe.summary = article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description
-            fe.authors = [Person(article.author), Person(article.publication)]
-            fe.image = imageurl
-        except:
-            pass
+        article = db["articles"].find_one(file_path="output/" + fn)
+        fe = p.add_episode()
+        downloadurl = bk.get_download_url(i[0].as_dict()['fileName'])
+        imageurl = bk.get_download_url(i[0].as_dict()['fileName'].rsplit('.', 1)[0] + '.png')
+        size = i[0].as_dict()["size"]
+        fe.media = Media(downloadurl, size=size)
+        fe.title = article.title
+        fe.subtitle = article.publication + ": " + article.title
+        pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
+        fe.publication_date = pubdate
+        fe.summary = article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description
+        fe.authors = [Person(article.author), Person(article.publication)]
+        fe.image = imageurl
+
 p.rss_file('podcast.xml')
