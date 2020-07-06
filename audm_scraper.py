@@ -149,7 +149,7 @@ def main() -> None:
                 with alive_bar(len(p), force_tty=True) as filebar:
                     for f in p:
                         file = audm.get_file(f["audio_filename"])
-                        filename = os.path.join("output", article["short_name"] + "/" + f["index"].zfill(4) + ".m4a")
+                        filename = os.path.join("output", article["short_name"] + "/" + str(f["index"]).zfill(4) + ".m4a")
                         with open(filename, "wb") as fz:
                             fz.write(file.content)
                             files.append({"filename": filename, "index": f["index"]})
@@ -160,7 +160,7 @@ def main() -> None:
 
                 for part in textfo:
                     article_text_string += part["text"] + "\n"
-                db["article_text"].insert_ignore({
+                db["article_text"].upsert({
                         "publication": article["publication_name"], "title": article_title, "author": author,
                         "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
                 }, ["object_id", "publication"])
