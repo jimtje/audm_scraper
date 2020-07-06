@@ -47,7 +47,9 @@ fg.podcast.itunes_category('News')
 bk = b2.get_bucket_by_name(bucketname)
 for i in bk.ls(recursive=True):
     if i[0].as_dict()["fileName"].endswith(".m4a"):
+        print(i[0].as_dict())
         fn = i[0].as_dict()["fileName"]
+        print(fn)
         article = db["articles"].find_one(file_path="output/" + fn)
         fe = fg.add_entry()
         downloadurl = bk.get_download_url(i[0].as_dict()['fileName'])
