@@ -60,6 +60,7 @@ for i in bk.ls(recursive=True):
         imageurl = bk.get_download_url(i[0].as_dict()['fileName'].rsplit('.', 1)[0] + '.png')
         size = i[0].as_dict()["size"]
         fe.media = Media(downloadurl, size=size)
+        fe.media.populate_duration_from("output/" + fn)
         fe.title = article.title + " by " + article.author + " (" + article.publication + ")"
         fe.subtitle = article.publication + ": " + article.title
         pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
