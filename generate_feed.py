@@ -58,7 +58,7 @@ for i in bk.ls(recursive=True):
         fe.podcast.itunes_subtitle(article.publication + ": " + article.title)
         pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
         fe.published(pubdate)
-        fe.description(article.album + "\nnarrated by: " + article.narrator + "\n" + article.description)
+        fe.description(article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description)
         fe.author(article.author)
         fe.enclosure(downloadurl, 0, 'audio/x-m4a')
         fe.podcast.itunes_image(imageurl)
