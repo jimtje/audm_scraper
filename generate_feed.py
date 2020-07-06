@@ -1,5 +1,5 @@
 from b2sdk.v1 import B2Api, InMemoryAccountInfo, ScanPoliciesManager, parse_sync_folder, Synchronizer, NewerFileSyncMode, SyncReport, CompareVersionMode, KeepOrDeleteMode
-from podgen import Podcast, Category, Episode, Media, Person
+from podgen import Podcast, Category, Episode, Media, Person, htmlencode
 import time
 import sys
 from backports.zoneinfo import ZoneInfo
@@ -57,11 +57,11 @@ for i in bk.ls(recursive=True):
         imageurl = bk.get_download_url(i[0].as_dict()['fileName'].rsplit('.', 1)[0] + '.png')
         size = i[0].as_dict()["size"]
         fe.media = Media(downloadurl, size=size)
-        fe.title = article.title
+        fe.title = article.title + " by " + article.author + " (" + article.publication + ")"
         fe.subtitle = article.publication + ": " + article.title
         pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
         fe.publication_date = pubdate
-        fe.summary = article.publication + "\nnarrated by: " + article.narrator + "\n" + article.description
+        fe.summary = "By: " + article.author + "\n" + article.publication + "\nNarrated by: " + article.narrator + "\n" + article.description
         fe.authors = [Person(article.author), Person(article.publication)]
         fe.image = imageurl
 
