@@ -6,7 +6,7 @@ from backports.zoneinfo import ZoneInfo
 import datetime
 import dataset
 import configparser
-from github import Github
+from github import Github, InputFileContent
 from stuf import stuf
 
 config = configparser.RawConfigParser()
@@ -77,10 +77,10 @@ for gist in gists:
     if "podcast.xml" in gist.files.keys():
         with open("podcast.xml") as fd:
             t = fd.read()
-        gist.edit(files={"podcast.xml": t})
+        gist.edit(files={"podcast.xml": InputFileContent(content=t)})
         gist_updated = True
 if not gist_updated:
     with open("podcast.xml") as fd:
         t = fd.read()
-    user.create_gist(True, {"podcast.xml", t})
+    user.create_gist(True, {"podcast.xml": InputFileContent(content=t)})
 
