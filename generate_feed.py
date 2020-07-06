@@ -2,6 +2,7 @@ from b2sdk.v1 import B2Api, InMemoryAccountInfo, ScanPoliciesManager, parse_sync
 from feedgen.feed import FeedGenerator
 import time
 import sys
+from backports.zoneinfo import ZoneInfo
 import datetime
 import dataset
 import configparser
@@ -55,7 +56,7 @@ for i in bk.ls(recursive=True):
         fe.title(article.title)
         fe.podcast.itunes_author(article.author)
         fe.podcast.itunes_subtitle(article.publication + ": " + article.title)
-        pubdate = datetime.datetime.fromtimestamp(article.pubdate)
+        pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
         fe.published(pubdate)
         fe.description(article.album + "\nnarrated by: " + article.narrator + "\n" + article.description)
         fe.author(article.author)
