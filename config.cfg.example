@@ -1,3 +1,6 @@
 [logins]
 username = xxx@aaa.bbb
 password = abc123ABC
+backblazekey = xxx
+backblazesecret = xxx
+backblazebucket = xxx

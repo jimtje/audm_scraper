@@ -14,7 +14,6 @@ with open("config.cfg", "r") as cfg:
     config.read_file(cfg)
 username = config.get("logins", "username")
 password = config.get("logins", "password")
-
 os.makedirs("output", exist_ok=True)
 db = dataset.connect("sqlite:///output/files.db")
 
@@ -96,6 +95,7 @@ class Audm(object):
 
 
 def main() -> None:
+
     audm = Audm(username, password)
     # This grabs the filtering options available. Filtering is first done by narrator, publication, or author.
     filters = audm.filters()
@@ -149,7 +149,7 @@ def main() -> None:
                 with alive_bar(len(p), force_tty=True) as filebar:
                     for f in p:
                         file = audm.get_file(f["audio_filename"])
-                        filename = os.path.join("output", article["short_name"] + "/" + f["audio_filename"])
+                        filename = os.path.join("output", article["short_name"] + "/" + f["index"].zfill(4) + ".m4a")
                         with open(filename, "wb") as fz:
                             fz.write(file.content)
                             files.append({"filename": filename, "index": f["index"]})
@@ -168,8 +168,13 @@ def main() -> None:
                 tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
                 with open(tempfile, "a") as listf:
-
+                    metadatafile = audm.get_file(article["metadata_audio"])
+                    metadatafilename = os.path.join("output", article["short_name"] + "/" + article["metadata_audio"])
+                    with open(metadatafilename, "wb") as md:
+                        md.write(metadatafile.content)
+                    listf.write("file '" + os.path.abspath(metadatafilename) + "'\n")
                     for fn in fo:
+                        print(fn["filename"])
                         listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
 
                 concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
@@ -182,7 +187,7 @@ def main() -> None:
                                               "publication": article["publication_name"], "title": article_title,
                                               "author": author, "pubdate": pubdate.timestamp,
                                               "narrator": article["narrator_name"], "description": article["desc"],
-                                              "object_id": article["object_id"], "file_path": eventual_outfile
+                                              "object_id": article["object_id"], "file_path": eventual_outfile, "image_path": cover_image
                                       }, ["object_id"])
                 audio = MP4(eventual_outfile)
                 audio.delete()
