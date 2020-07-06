@@ -6,7 +6,9 @@ from backports.zoneinfo import ZoneInfo
 import datetime
 import dataset
 import configparser
+from github import Github
 from stuf import stuf
+
 config = configparser.RawConfigParser()
 with open("config.cfg", "r") as cfg:
     config.read_file(cfg)
@@ -16,6 +18,7 @@ db = dataset.connect("sqlite:///output/files.db", row_type=stuf)
 application_key = config.get("logins", "backblazekey")
 application_secret = config.get("logins", "backblazesecret")
 bucketname = config.get("logins", "backblazebucket")
+githubtoken = config.get("logins", "githubtoken")
 b2 = B2Api(InMemoryAccountInfo())
 b2.authorize_account("production", application_key, application_secret)
 source = 'output'
@@ -66,3 +69,18 @@ for i in bk.ls(recursive=True):
         fe.image = imageurl
 
 p.rss_file('podcast.xml')
+g = Github(githubtoken)
+user = g.get_user()
+gists = user.get_gists()
+gist_updated = False
+for gist in gists:
+    if "podcast.xml" in gist.files.keys():
+        with open("podcast.xml") as fd:
+            t = fd.read()
+        gist.edit(files={"podcast.xml": t})
+        gist_updated = True
+if not gist_updated:
+    with open("podcast.xml") as fd:
+        t = fd.read()
+    user.create_gist(True, {"podcast.xml", t})
+

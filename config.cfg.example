@@ -4,3 +4,4 @@ password = abc123ABC
 backblazekey = xxx
 backblazesecret = xxx
 backblazebucket = xxx
+githubtoken = xxx
