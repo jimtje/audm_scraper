@@ -163,7 +163,7 @@ def main() -> None:
                 db["article_text"].insert_ignore({
                         "publication": article["publication_name"], "title": article_title, "author": author,
                         "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
-                }, ["object_id"])
+                }, ["object_id", "publication"])
                 # Temporary file to enable ffmpeg to demux and concat the m4a files
                 tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
@@ -174,7 +174,7 @@ def main() -> None:
                         md.write(metadatafile.content)
                     listf.write("file '" + os.path.abspath(metadatafilename) + "'\n")
                     for fn in fo:
-                        print(fn["filename"])
+
                         listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
 
                 concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
@@ -188,7 +188,7 @@ def main() -> None:
                                               "author": author, "pubdate": pubdate.timestamp,
                                               "narrator": article["narrator_name"], "description": article["desc"],
                                               "object_id": article["object_id"], "file_path": eventual_outfile, "image_path": cover_image
-                                      }, ["object_id"])
+                                      }, ["object_id", "publication"])
                 audio = MP4(eventual_outfile)
                 audio.delete()
                 try:
