@@ -2,7 +2,7 @@ from b2sdk.v1 import B2Api, InMemoryAccountInfo, ScanPoliciesManager, parse_sync
 from feedgen.feed import FeedGenerator
 import time
 import sys
-import arrow
+import datetime
 import dataset
 import configparser
 from stuf import stuf
@@ -55,7 +55,8 @@ for i in bk.ls(recursive=True):
         fe.title(article.title)
         fe.podcast.itunes_author(article.author)
         fe.podcast.itunes_subtitle(article.publication + ": " + article.title)
-        fe.pubDate(arrow.arrow.Arrow.fromtimestamp(article.pubdate).format('YYYY-MM-DD'))
+        pubdate = datetime.datetime.fromtimestamp(article.pubdate)
+        fe.pubDate(f"{pubdate:%Y-%m-%d}")
         fe.description(article.album + "\nnarrated by: " + article.narrator + "\n" + article.description)
         fe.author(article.author)
         fe.enclosure(downloadurl, 0, 'audio/x-m4a')
