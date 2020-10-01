@@ -5,6 +5,8 @@ This script will download and join all segments that make up each story as read 
 
 ## Installation
 
+Tested on python 3.6+
+
 ### Prerequisites:
 ####  1. ffmpeg
 
@@ -26,7 +28,7 @@ sudo apt-get install libtag1-dev
 #### 3. Requirements
 
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Configuration
