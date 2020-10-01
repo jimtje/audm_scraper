@@ -39,7 +39,7 @@ Add in your Audm username and password into config.cfg
 ## Run
 
 ```bash
-python audm_scraper.py
+python3 audm_scraper.py
 ```
 Audio files are saved to output/{publication name}/ by default.
 

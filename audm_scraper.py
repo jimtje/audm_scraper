@@ -6,11 +6,13 @@ import requests
 import taglib
 from alive_progress import alive_bar
 
+
 config = configparser.RawConfigParser()
 with open("config.cfg", "r") as cfg:
     config.read_file(cfg)
 username = config.get("logins", "username")
 password = config.get("logins", "password")
+os.makedirs("output", exist_ok=True)
 
 
 class AudmException(BaseException):
@@ -22,7 +24,6 @@ class InvalidLogin(AudmException):
 
 
 class Audm(object):
-
     def __init__(self, username, password):
         self.username = username
         self.password = password
@@ -63,7 +64,7 @@ class Audm(object):
     def articles(self, publication_ids=[], narrator_names=[], author_names=[]):
         payload = {
                 "publication_ids": publication_ids, "ordering": "byAudmDateDesc", "narrator_names": narrator_names,
-                "author_names": author_names
+                "author_names": author_names,
         }
         url = "https://api.audm.com/v2/prefetchMinimumDiscoverScreenDataForArticleList"
         r = self.session.post(url, json=payload)
@@ -93,12 +94,16 @@ def main():
     audm = Audm(username, password)
     # This grabs the filtering options available. Filtering is first done by narrator, publication, or author.
     filters = audm.filters()
+    publication_counter = 1
+    totalpublications = len(filters["publications"])
 
     for eachpublication in filters["publications"]:
-        print("Publication: " + eachpublication["name_full"])
+        publication_name = eachpublication["name_full"].replace("/", "-")
+        print("Publication: " + publication_name + " " + str(publication_counter) + "/" + str(totalpublications))
+        publication_counter += 1
 
         # I've found it way easier to sort by publication first
-        publications_dir = os.path.abspath("output/" + eachpublication["name_full"])
+        publications_dir = os.path.abspath("output/" + publication_name)
         os.makedirs(publications_dir, exist_ok=True)
 
         articles = audm.articles(publication_ids=[eachpublication["object_id"]])
@@ -112,14 +117,15 @@ def main():
         counter = 1
         for article in t["article_versions"]:
             files = []
-            article["publication_name"] = eachpublication["name_full"]
+            article["publication_name"] = publication_name
             article_title = article["title"]
-            author = article["author_name"].replace('"', '')
-
+            author = article["author_name"].replace('"', "")
 
             eventual_outfile = os.path.join(publications_dir,
-                                            article["short_name"] + "-" + author + "-" + article[
-                                                "pub_date"] + ".m4a").replace("'", "'\\''")
+                    article["short_name"] + "-" + author + "-" + article["pub_date"] + ".m4a", )
+            illegal_char = ("?", "'", '"', "*", "^", "%", "$", "#", "~", "<", ">", ",", ";", ":", "|",)
+            for char in illegal_char:
+                eventual_outfile = eventual_outfile.replace(char, "")
             if not os.path.exists(eventual_outfile):
 
                 print("Article: " + article_title + " by " + author + " " + str(counter) + "/" + str(num_articles))
@@ -131,12 +137,13 @@ def main():
                 with alive_bar(len(p), force_tty=True) as filebar:
                     for f in p:
                         file = audm.get_file(f["audio_filename"])
-                        filename = publications_dir + "/" + article["short_name"] + "/" + f["audio_filename"]
+                        filename = (publications_dir + "/" + article["short_name"] + "/" + str(f["index"]).zfill(
+                            4) + ".m4a")
                         with open(filename, "wb") as fz:
                             fz.write(file.content)
                             files.append({"filename": filename, "index": f["index"]})
                         filebar()
-                fo = sorted(files, key=lambda i: i['index'])
+                fo = sorted(files, key=lambda i: i["index"])
                 # Temporary file to enable ffmpeg to demux and concat the m4a files
                 tempfile = os.path.join(publications_dir + "/" + article["short_name"], "templist.txt").replace("'",
                                                                                                                 "'\\''")
@@ -147,9 +154,11 @@ def main():
                         sanitized_file = fn["filename"].replace("'", "'\\''")
                         listf.write("file '" + sanitized_file + "'\n")
 
-                concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
-                                 f"{eventual_outfile}\""
+                concat_command = (f'ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i "{tempfile}" -c copy "'
+                                  f'{eventual_outfile}"')
                 os.system(concat_command)
+                # Cleanup
+                shutil.rmtree(publications_dir + "/" + article["short_name"])
                 # Tagging
                 audio = taglib.File(eventual_outfile)
                 audio.tags["PERFORMER"] = article["narrator_name"]
@@ -159,13 +168,12 @@ def main():
                 audio.tags["DATE"] = article["pub_date"]
                 audio.tags["DESCRIPTION"] = article["desc"]
                 audio.save()
-                # Cleanup
-                shutil.rmtree(publications_dir + "/" + article["short_name"])
                 counter += 1
             else:
-                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(counter) + "/" + str(num_articles))
+                print(article_title + " by " + author + " already downloaded, skipping article." + " " + str(
+                    counter) + "/" + str(num_articles))
                 counter += 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
