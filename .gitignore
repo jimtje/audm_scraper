@@ -245,3 +245,4 @@ config.cfg
 output/
 
 .idea/
+/upsync.py

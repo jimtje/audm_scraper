@@ -1,6 +1,8 @@
 # Audm Scraper
 ![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue) ![GitHub](https://img.shields.io/github/license/jimtje/audm_scraper)
 
+[![time tracker](https://wakatime.com/badge/github/jimtje/audm_scraper.svg)](https://wakatime.com/badge/github/jimtje/audm_scraper)
+
 This script will download and join all segments that make up each story as read and available on the [Audm](https://www.audm.com/) app.
 
 ## Installation
