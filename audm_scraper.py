@@ -2,23 +2,39 @@ import configparser
 import os
 import shutil
 from typing import List, Dict, Tuple
-
+from b2sdk.v1 import (
+    B2Api, InMemoryAccountInfo, ScanPoliciesManager, parse_sync_folder, Synchronizer, NewerFileSyncMode, SyncReport,
+    CompareVersionMode, KeepOrDeleteMode
+)
+from podgen import Podcast, Category, Episode, Media, Person, htmlencode
+import sys
+import time
 import requests
 from mutagen.mp4 import MP4, MP4Cover, MP4Tags
 import dataset
 from alive_progress import alive_bar
 import arrow
+import datetime
+from backports.zoneinfo import ZoneInfo
+from urllib.parse import quote
+from stuf import stuf
+from invoke import run
 
 config = configparser.RawConfigParser()
+
 with open("config.cfg", "r") as cfg:
     config.read_file(cfg)
 username = config.get("logins", "username")
 password = config.get("logins", "password")
+feedurl = config.get("logins", "feedurl")
+bucket = config.get("logins", "backblazebucket")
 os.makedirs("output", exist_ok=True)
-db = dataset.connect("sqlite:///output/files.db")
+db = dataset.connect("sqlite:///output/files.db", row_type=stuf)
 
 
-class AudmException(BaseException):
+
+
+class AudmException(Exception):
     pass
 
 
@@ -65,10 +81,11 @@ class Audm(object):
         r = self.session.post(url)
         return r.json()["result"]
 
-    def articles(self, publication_ids: List[str] = [], narrator_names: List[str] = [], author_names: List[str] = []) -> Dict[str, List]:
+    def articles(self, publication_ids: List[str] = [], narrator_names: List[str] = [],
+                 author_names: List[str] = [], ) -> Dict[str, List]:
         payload = {
                 "publication_ids": publication_ids, "ordering": "byAudmDateDesc", "narrator_names": narrator_names,
-                "author_names": author_names
+                "author_names": author_names,
         }
         url = "https://api.audm.com/v2/prefetchMinimumDiscoverScreenDataForArticleList"
         r = self.session.post(url, json=payload)
@@ -125,14 +142,14 @@ def main() -> None:
             article_text = []
             article["publication_name"] = publication_name
             article_title = article["title"]
-            author = article["author_name"].replace('"', '')
+            author = article["author_name"].replace('"', "")
             pubdate = arrow.get(article["pub_date"])
             article_text_string = ""
             eventual_outfile = os.path.join("output",
-                                            pubdate.format('YYYY-MM-DD') + "-" + publication_name + "-" + article[
-                                                "short_name"] + ".m4a")
-            cover_image = os.path.join("output", pubdate.format('YYYY-MM-DD') + "-" + publication_name + "-" + article[
-                "short_name"] + ".png")
+                                            pubdate.format("YYYY-MM-DD") + "-" + publication_name + "-" + article[
+                                                "short_name"] + ".m4a", )
+            cover_image = os.path.join("output", pubdate.format("YYYY-MM-DD") + "-" + publication_name + "-" + article[
+                "short_name"] + ".png", )
             illegal_char = ("?", "'", '"', "*", "^", "%", "$", "#", "~", "<", ">", ",", ";", ":", "|",)
             for char in illegal_char:
                 eventual_outfile = eventual_outfile.replace(char, "")
@@ -149,47 +166,53 @@ def main() -> None:
                 with alive_bar(len(p), force_tty=True) as filebar:
                     for f in p:
                         file = audm.get_file(f["audio_filename"])
-                        filename = os.path.join("output", article["short_name"] + "/" + str(f["index"]).zfill(4) + ".m4a")
+                        filename = os.path.join("output",
+                                                article["short_name"] + "/" + str(f["index"]).zfill(4) + ".m4a", )
                         with open(filename, "wb") as fz:
                             fz.write(file.content)
                             files.append({"filename": filename, "index": f["index"]})
                             article_text.append({"index": f["index"], "text": f["text"]})
                         filebar()
-                fo = sorted(files, key=lambda i: i['index'])
-                textfo = sorted(article_text, key=lambda i: i['index'])
+                fo = sorted(files, key=lambda i: i["index"])
+                textfo = sorted(article_text, key=lambda i: i["index"])
 
                 for part in textfo:
                     article_text_string += part["text"] + "\n"
                 db["article_text"].upsert({
                         "publication": article["publication_name"], "title": article_title, "author": author,
-                        "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string
-                }, ["object_id", "publication"])
+                        "pubdate": pubdate.timestamp, "object_id": article["object_id"], "text": article_text_string,
+                }, ["object_id", "publication"], )
                 # Temporary file to enable ffmpeg to demux and concat the m4a files
                 tempfile = os.path.join("output/" + article["short_name"], "templist.txt").replace("'", "'\\''")
 
                 with open(tempfile, "a") as listf:
                     metadatafile = audm.get_file(article["metadata_audio"])
-                    metadatafilename = os.path.join("output", article["short_name"] + "/" + article["metadata_audio"])
-                    with open(metadatafilename, "wb") as md:
-                        md.write(metadatafile.content)
-                    listf.write("file '" + os.path.abspath(metadatafilename) + "'\n")
+                    if article["metadata_audio"].endswith(".m4a"):
+                        metadatafilename = os.path.join("output",
+                                                        article["short_name"] + "/" + article["metadata_audio"], )
+                        with open(metadatafilename, "wb") as md:
+                            md.write(metadatafile.content)
+                        listf.write("file '" + os.path.abspath(metadatafilename) + "'\n")
                     for fn in fo:
+                        # print(fn["filename"])
 
                         listf.write("file '" + os.path.abspath(fn["filename"]) + "'\n")  # -nostats -loglevel 0
 
-                concat_command = f"ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i \"{tempfile}\" -c copy \"" \
-                                 f"{eventual_outfile}\""
-                os.system(concat_command)
+                concat_command = (f'ffmpeg -nostats -loglevel 0 -y -f concat -safe 0 -i "{tempfile}" -c copy "'
+                                  f'{eventual_outfile}"')
+                run(concat_command)
                 # Tagging
                 shutil.rmtree("output/" + article["short_name"])
                 counter += 1
                 db["articles"].upsert({
-                                              "publication": article["publication_name"], "title": article_title,
-                                              "author": author, "pubdate": pubdate.timestamp,
-                                              "narrator": article["narrator_name"], "description": article["desc"],
-                                              "object_id": article["object_id"], "file_path": eventual_outfile, "image_path": cover_image
-                                      }, ["object_id", "publication"])
+                        "publication": article["publication_name"], "title": article_title, "author": author,
+                        "pubdate": pubdate.timestamp, "narrator": article["narrator_name"],
+                        "description": article["desc"], "object_id": article["object_id"],
+                        "file_path": eventual_outfile, "image_path": cover_image,
+                }, ["object_id", "publication"], )
+
                 audio = MP4(eventual_outfile)
+
                 audio.delete()
                 try:
                     audio.add_tags()
@@ -199,12 +222,12 @@ def main() -> None:
 
                 audio["covr"] = [MP4Cover(data=image.content, imageformat=MP4Cover.FORMAT_PNG)]
 
-                audio['\xa9nam'] = article_title
-                audio['\xa9alb'] = publication_name
-                audio['\xa9ART'] = author
-                audio['\xa9wrt'] = article["narrator_name"]
-                audio['\xa9day'] = pubdate.format('YYYY-MM-DD')
-                audio['desc'] = article["desc"]
+                audio["\xa9nam"] = article_title
+                audio["\xa9alb"] = publication_name
+                audio["\xa9ART"] = author
+                audio["\xa9wrt"] = article["narrator_name"]
+                audio["\xa9day"] = pubdate.format("YYYY-MM-DD")
+                audio["desc"] = article["desc"]
 
                 audio.save()  # Cleanup
 
@@ -218,6 +241,63 @@ def main() -> None:
                 with open(cover_image, "wb") as cv:
                     cv.write(image.content)
 
+    application_key = config.get("logins", "backblazekey")
+    application_secret = config.get("logins", "backblazesecret")
+    bucketname = config.get("logins", "backblazebucket")
+    outputfile = config.get("logins", "outputfile")
+    filedomain = config.get("logins", "filedomain")
+    feedurl = config.get("logins", "feedurl")
 
-if __name__ == '__main__':
+    b2 = B2Api(InMemoryAccountInfo())
+    b2.authorize_account("production", application_key, application_secret)
+    source = 'output'
+    destination = 'b2://' + bucketname
+    source = parse_sync_folder(source, b2)
+    destination = parse_sync_folder(destination, b2)
+    policies_manager = ScanPoliciesManager(exclude_all_symlinks=True)
+    synchronizer = Synchronizer(max_workers=10, policies_manager=policies_manager, dry_run=False,
+                                allow_empty_source=True, compare_version_mode=CompareVersionMode.SIZE,
+                                compare_threshold=1000, newer_file_mode=NewerFileSyncMode.SKIP,
+                                keep_days_or_delete=KeepOrDeleteMode.DELETE)
+    no_progress = False
+    with SyncReport(sys.stdout, no_progress) as reporter:
+        synchronizer.sync_folders(source_folder=source, dest_folder=destination,
+                                  now_millis=int(round(time.time() * 1000)), reporter=reporter)
+    p = Podcast()
+
+    p.name = 'Audm Feed'
+    p.explicit = False
+    p.language = "en-US"
+    p.website = "https://www.audm.com"
+    p.description = "Stories from the Audm app"
+    p.type = "episodic"
+    p.image = f"{filedomain}/file/{bucketname}/audm.png"
+    p.category = Category("News")
+    p.feed_url = feedurl
+    bk = b2.get_bucket_by_name(bucketname)
+    for i in bk.ls(recursive=True):
+        if i[0].as_dict()["fileName"].endswith(".m4a"):
+            fn = i[0].as_dict()["fileName"]
+            print(fn)
+            article = db["articles"].find_one(file_path="output/" + fn)
+            fe = p.add_episode()
+            downloadurl = f"{filedomain}/file/{bucketname}/{fn}"
+            imgu = fn.rsplit('.', 1)[0] + '.png'
+            imageurl = f"{filedomain}/file/{bucketname}/{imgu}"
+            size = i[0].as_dict()["size"]
+            fe.media = Media(downloadurl, size=size)
+            fe.media.populate_duration_from("output/" + fn)
+            fe.title = article.title + " by " + article.author + " (" + article.publication + ")"
+            fe.subtitle = article.description
+            pubdate = datetime.datetime.fromtimestamp(article.pubdate).replace(tzinfo=ZoneInfo('UTC'))
+            fe.publication_date = pubdate
+            fe.summary = "By: " + article.author + "\n" + article.publication + "\nNarrated by: " + article.narrator \
+                         + "\n" + article.description
+            fe.authors = [Person(article.author), Person(article.publication)]
+            fe.image = imageurl
+
+    p.rss_file(outputfile)
+
+
+if __name__ == "__main__":
     main()

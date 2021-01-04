@@ -4,4 +4,6 @@ password = abc123ABC
 backblazekey = xxx
 backblazesecret = xxx
 backblazebucket = xxx
-githubtoken = xxx
+feedurl = https://xxx/podcast.xml
+outputfile = /var/www/html/podcast.xml
+filedomain = https://f001.backblazeb2.com

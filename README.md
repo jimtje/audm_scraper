@@ -1,7 +1,9 @@
-# Audm Scraper
+# Audm Scraper - Podcast Auto Feed Branch
 ![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue) ![GitHub](https://img.shields.io/github/license/jimtje/audm_scraper)
 
 This script will download and join all segments that make up each story as read and available on the [Audm](https://www.audm.com/) app.
+
+## Note: This branch is specifically set up to automatically also upload audio files to a Backblaze B2 bucket and then create an RSS feed, meant for automatic updating. If you don't want to publish your own feed and just want to scrape the files, use the master branch, thanks!
 
 ## Installation
 
@@ -39,7 +41,7 @@ Add in your Audm username and password into config.cfg
 ## Run
 
 ```bash
-python audm_scraper.py
+python3 audm_scraper.py
 ```
 Audio files are saved to output/{publication name}/ by default.
 

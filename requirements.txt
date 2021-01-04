@@ -1,7 +1,7 @@
 alembic==1.4.2
 alive-progress==1.5.1
 arrow==0.15.7
-b2sdk==1.1.0
+b2sdk==1.2.0
 backports.zoneinfo==0.2.1
 certifi==2020.6.20
 chardet==3.0.4
@@ -24,7 +24,6 @@ MarkupSafe==1.1.1
 mutagen==1.44.0
 parse==1.15.0
 podgen==1.1.0
-PyGithub==1.51
 PyJWT==1.7.1
 pytaglib==1.4.6
 python-dateutil==2.8.1
